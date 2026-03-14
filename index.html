@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lungful</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@200;300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:         #f5f2eb;
+    --bg2:        #ede9df;
+    --bg3:        #e4dfd3;
+    --surface:    #ddd8ca;
+    --border:     rgba(100,90,60,0.18);
+    --border-med: rgba(100,90,60,0.32);
+    --accent:     #5a7a42;
+    --accent-lt:  #7a9e5a;
+    --text:       #1e1c14;
+    --text-dim:   #4a4438;
+    --text-faint: #857a68;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Jost', sans-serif;
+    font-weight: 300;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  body::after {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 20% 10%, rgba(120,160,80,0.10) 0%, transparent 65%),
+      radial-gradient(ellipse 50% 60% at 85% 85%, rgba(160,120,50,0.09) 0%, transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 520px;
+    padding: 0 1.5rem 3rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  header {
+    padding: 2.5rem 0 1.8rem;
+    text-align: center;
+  }
+  header h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 300;
+    font-size: 2.1rem;
+    letter-spacing: 0.15em;
+    color: var(--text);
+    text-transform: lowercase;
+  }
+  header p {
+    font-size: 0.68rem;
+    letter-spacing: 0.28em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    margin-top: 0.3rem;
+  }
+
+  .presets {
+    display: flex;
+    gap: 0.45rem;
+    margin-bottom: 1.4rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .preset-btn {
+    background: transparent;
+    border: 0.5px solid var(--border);
+    color: var(--text-dim);
+    font-family: 'Jost', sans-serif;
+    font-weight: 300;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.42rem 1rem;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.22s;
+  }
+  .preset-btn:hover { color: var(--text); border-color: var(--border-med); background: var(--bg2); }
+  .preset-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .tune-panel {
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: 2px;
+    padding: 1.2rem 1.4rem 1rem;
+    margin-bottom: 1.4rem;
+  }
+  .tune-panel h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: 0.95rem;
+    color: var(--text-dim);
+    margin-bottom: 0.9rem;
+    letter-spacing: 0.06em;
+  }
+  .tune-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 0.7rem;
+  }
+  .tune-field label {
+    display: block;
+    font-size: 0.63rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 0.35rem;
+  }
+  .step-ctrl {
+    display: flex;
+    align-items: center;
+    border: 0.5px solid var(--border);
+    border-radius: 2px;
+    background: var(--bg);
+    overflow: hidden;
+  }
+  .step-ctrl button {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.1rem;
+    width: 30px;
+    height: 32px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    flex-shrink: 0;
+    font-family: 'Jost', sans-serif;
+  }
+  .step-ctrl button:hover { background: var(--bg3); color: var(--accent); }
+  .step-ctrl span {
+    flex: 1;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 400;
+    color: var(--text);
+  }
+
+  .preset-note {
+    font-size: 0.68rem;
+    color: var(--text-faint);
+    line-height: 1.6;
+    margin-bottom: 0.9rem;
+    font-style: italic;
+  }
+
+  .circle-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0.5rem 0 1.4rem;
+  }
+  .circle-outer {
+    position: relative;
+    width: 280px;
+    height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .circle-outer:active .circle-main { opacity: 0.8; }
+  .circle-label {
+    position: absolute;
+    font-family: 'Jost', sans-serif;
+    font-weight: 300;
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(90,122,66,0.75);
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .timer-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.4rem;
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: 2px;
+    padding: 0.85rem 1.1rem;
+  }
+  .timer-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-left: 0.75rem;
+  }
+  .timer-toggle input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
+  .timer-fields {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    opacity: 0.35;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .timer-fields.enabled { opacity: 1; pointer-events: all; }
+  .timer-fields .step-ctrl { width: 100px; }
+  .timer-runtime {
+    display: none;
+    align-items: center;
+    gap: 0.6rem;
+    margin-left: auto;
+  }
+  .timer-runtime.visible { display: flex; }
+  .timer-remaining {
+    font-size: 0.78rem;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .btn-timer-reset {
+    background: transparent;
+    border: 0.5px solid var(--border);
+    color: var(--text-dim);
+    font-family: 'Jost', sans-serif;
+    font-weight: 300;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    padding: 0.3rem 0.75rem;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-timer-reset:hover { color: var(--text); border-color: var(--border-med); background: var(--bg3); }
+  .timer-countdown {
+    display: none;
+  }
+  .circle-ring {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    border: 0.5px solid rgba(90,122,66,0.28);
+  }
+  .circle-ring-2 {
+    position: absolute; inset: 20px;
+    border-radius: 50%;
+    border: 0.5px solid rgba(90,122,66,0.13);
+  }
+  .circle-main {
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 38%, rgba(122,158,90,0.42), rgba(90,122,66,0.16) 70%);
+    border: 1px solid rgba(90,122,66,0.45);
+    position: relative;
+  }
+  .circle-main::after {
+    content: '';
+    position: absolute; inset: -18px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(90,122,66,0.10), transparent 70%);
+  }
+
+  .phase-label {
+    text-align: center;
+    margin-bottom: 0.4rem;
+    min-height: 2.4rem;
+  }
+  .phase-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 300;
+    font-size: 1.5rem;
+    color: var(--text);
+    letter-spacing: 0.05em;
+    display: block;
+  }
+  .phase-count {
+    font-size: 0.68rem;
+    letter-spacing: 0.25em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    display: block;
+    margin-top: 0.12rem;
+  }
+
+  .cycle-info {
+    text-align: center;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    margin-bottom: 1.6rem;
+    min-height: 1rem;
+  }
+
+  .pattern-display {
+    display: flex;
+    gap: 0.4rem;
+    justify-content: center;
+    margin-bottom: 1.6rem;
+    flex-wrap: wrap;
+  }
+  .pattern-phase {
+    font-size: 0.62rem;
+    letter-spacing: 0.06em;
+    color: var(--text-faint);
+    background: var(--bg2);
+    border: 0.5px solid var(--border);
+    border-radius: 2px;
+    padding: 0.28rem 0.65rem;
+    transition: all 0.3s;
+  }
+  .pattern-phase.active {
+    color: var(--accent);
+    border-color: rgba(90,122,66,0.5);
+    background: rgba(90,122,66,0.08);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>lungful</h1>
+    <p>breathe with sound</p>
+  </header>
+
+  <div class="presets">
+    <button class="preset-btn active" data-preset="box" data-testid="preset-box">Box</button>
+    <button class="preset-btn" data-preset="478" data-testid="preset-478">4 · 7 · 8</button>
+    <button class="preset-btn" data-preset="coherence" data-testid="preset-coherence">Coherence</button>
+    <button class="preset-btn" data-preset="custom" data-testid="preset-custom">Custom</button>
+  </div>
+
+  <div class="tune-panel" id="tunePanel"></div>
+  <div class="pattern-display" id="patternDisplay"></div>
+
+  <div class="circle-wrap">
+    <div class="circle-outer" id="circleOuter" data-testid="circle" onclick="toggleSession()">
+      <div class="circle-ring"></div>
+      <div class="circle-ring-2"></div>
+      <div class="circle-main" id="circleMain"></div>
+      <span class="circle-label" id="circleLabel" data-testid="circle-label">begin</span>
+    </div>
+  </div>
+
+  <div class="phase-label">
+    <span class="phase-name" id="phaseName" data-testid="phase-name">—</span>
+    <span class="phase-count" id="phaseCount" data-testid="phase-count"></span>
+  </div>
+  <div class="cycle-info" id="cycleInfo" data-testid="cycle-info"></div>
+
+  <div class="timer-countdown" id="timerCountdown"></div>
+
+  <div class="timer-row">
+    <div class="timer-fields" id="timerFields">
+      <div class="tune-field">
+        <div class="step-ctrl">
+          <button onclick="stepTimer(-1)" data-testid="timer-dec">−</button>
+          <span id="timerVal" data-testid="timer-val">5</span>
+          <button onclick="stepTimer(1)" data-testid="timer-inc">+</button>
+        </div>
+      </div>
+      <span style="font-size:0.7rem;color:var(--text-faint);letter-spacing:0.1em;">min</span>
+    </div>
+    <label class="timer-toggle">
+      <input type="checkbox" id="timerEnabled" data-testid="timer-checkbox" onchange="onTimerToggle()">
+      Timer
+    </label>
+    <div class="timer-runtime" id="timerRuntime" data-testid="timer-runtime">
+      <span class="timer-remaining" id="timerRemaining" data-testid="timer-remaining"></span>
+      <button class="btn-timer-reset" id="timerResetBtn" data-testid="timer-reset" onclick="resetSession()">Reset</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Lungful — single-file breathwork app. No build step, no dependencies.
+// To resume development: upload this file to a new Claude conversation.
+// Behaviour is documented as runnable Playwright tests in tests/e2e/lungful.spec.js.
+const PRESET_DEFS = {
+  box: {
+    label: 'Box breathing',
+    note: null,
+    ratios: [1, 1, 1, 1],
+    params: { pace: 4 },
+    paceField: { key: 'pace', label: 'Pace (s)', min: 0.5, max: 20, step: 0.5 },
+    buildPattern(p) {
+      const t = p.pace;
+      return [
+        {n:'Inhale', t, type:'in'},
+        {n:'Hold',   t, type:'hold'},
+        {n:'Exhale', t, type:'out'},
+        {n:'Hold',   t, type:'hold'},
+      ];
+    }
+  },
+  '478': {
+    label: '4 · 7 · 8',
+    note: null,
+    ratios: [4, 7, 8, 0],
+    params: { pace: 1 },
+    paceField: { key: 'pace', label: 'Pace (s)', min: 0.5, max: 3, step: 0.5 },
+    buildPattern(p) {
+      const r = this.ratios;
+      return [
+        {n:'Inhale', t: r[0] * p.pace, type:'in'},
+        {n:'Hold',   t: r[1] * p.pace, type:'hold'},
+        {n:'Exhale', t: r[2] * p.pace, type:'out'},
+      ];
+    }
+  },
+  coherence: {
+    label: 'Coherence breathing',
+    note: null,
+    ratios: [1, 0, 1, 0],
+    params: { pace: 5 },
+    paceField: { key: 'pace', label: 'Pace (s)', min: 0.5, max: 20, step: 0.5 },
+    buildPattern(p) {
+      return [
+        {n:'Inhale', t: p.pace, type:'in'},
+        {n:'Exhale', t: p.pace, type:'out'},
+      ];
+    }
+  },
+  custom: {
+    label: 'Custom pattern',
+    note: null,
+    ratios: [1, 1, 1, 1],
+    params: { pace: 4, r_in: 1, r_hold1: 1, r_out: 1, r_hold2: 1 },
+    paceField: { key: 'pace', label: 'Pace (s)', min: 0.5, max: 20, step: 0.5 },
+    ratioFields: [
+      { key: 'r_in',    label: 'Inhale ratio',        row: 0 },
+      { key: 'r_hold1', label: 'Hold after in',        row: 0 },
+      { key: 'r_out',   label: 'Exhale ratio',         row: 1 },
+      { key: 'r_hold2', label: 'Hold after out',       row: 1 },
+    ],
+    buildPattern(p) {
+      const phases = [{n:'Inhale', t: Math.round(p.r_in    * p.pace * 10)/10, type:'in'}];
+      if (p.r_hold1 > 0) phases.push({n:'Hold', t: Math.round(p.r_hold1 * p.pace * 10)/10, type:'hold'});
+      phases.push({n:'Exhale', t: Math.round(p.r_out   * p.pace * 10)/10, type:'out'});
+      if (p.r_hold2 > 0) phases.push({n:'Hold', t: Math.round(p.r_hold2 * p.pace * 10)/10, type:'hold'});
+      return phases;
+    }
+  }
+};
+
+let currentPreset = 'box';
+let currentPattern = [];
+let running = false;
+let paused = false;
+let stopFlag = false;
+let cycleCount = 0;
+let audioCtx = null;
+let activeNodes = [];
+let animFrame = null;
+let phaseTimer = null;
+let lastPhaseType = 'out';
+let timerMinutes = 5;
+let timerActive = false;
+let sessionStartTime = null;
+let remainingMs = null;
+let countdownInterval = null;
+
+const VOL = 0.7, REV = 0.6, BPM = 35;
+const LS_KEY = 'breathwork_params';
+
+// ─── localStorage persistence ──────────────────────────────────────────────
+function saveParams() {
+  const data = {};
+  Object.keys(PRESET_DEFS).forEach(k => { data[k] = { ...PRESET_DEFS[k].params }; });
+  data._timer = timerMinutes;
+  data._timerActive = document.getElementById('timerEnabled').checked;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+function loadParams() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    Object.keys(PRESET_DEFS).forEach(k => {
+      if (data[k]) Object.assign(PRESET_DEFS[k].params, data[k]);
+    });
+    if (data._timer) timerMinutes = data._timer;
+    if (data._timerActive) {
+      document.getElementById('timerEnabled').checked = true;
+      document.getElementById('timerFields').classList.add('enabled');
+    }
+    document.getElementById('timerVal').textContent = timerMinutes;
+  } catch(e) {}
+}
+
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function makeReverb(c) {
+  const conv = c.createConvolver();
+  const len = c.sampleRate * 2.8;
+  const buf = c.createBuffer(2, len, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 2.0);
+  }
+  conv.buffer = buf;
+  const dry = c.createGain(); dry.gain.value = 1 - REV * 0.5;
+  const wetG = c.createGain(); wetG.gain.value = REV * 0.7;
+  const out = c.createGain();
+  dry.connect(out); conv.connect(wetG); wetG.connect(out);
+  out.connect(getMasterOut());
+  return { dry, conv, out };
+}
+
+function addSine(c, freq, endFreq, detuneCents, gainPeak, t, dur, dest) {
+  const osc = c.createOscillator();
+  const g = c.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, t);
+  osc.frequency.exponentialRampToValueAtTime(endFreq, t + Math.max(dur - 0.3, 0.1));
+  osc.detune.setValueAtTime(detuneCents, t);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(gainPeak, t + Math.min(0.6, dur * 0.2));
+  g.gain.linearRampToValueAtTime(0, t + dur - 0.05);
+  osc.connect(g); g.connect(dest);
+  osc.start(t); osc.stop(t + dur + 0.2);
+  activeNodes.push(osc);
+}
+
+function playTone(type, dur) {
+  const c = getCtx();
+  const t = c.currentTime;
+  const rev = makeReverb(c);
+  const master = c.createGain();
+  master.gain.setValueAtTime(VOL * 0.28, t);
+  const filter = c.createBiquadFilter();
+  filter.type = 'lowpass'; filter.Q.setValueAtTime(0.8, t);
+  master.connect(filter);
+  filter.connect(rev.dry); filter.connect(rev.conv);
+  const base = type === 'in' ? 110 : 220;
+  const end  = type === 'in' ? 220 : 110;
+  filter.frequency.setValueAtTime(type === 'in' ? 400 : 900, t);
+  filter.frequency.exponentialRampToValueAtTime(type === 'in' ? 900 : 400, t + Math.max(dur - 0.3, 0.1));
+  [0, 8, -8].forEach((detune, i) => {
+    addSine(c, base, end, detune, i === 0 ? 0.65 : 0.22, t, dur, master);
+  });
+  addSine(c, base*2, end*2, 3, 0.07, t, dur, master);
+}
+
+function scheduleHeartbeat(dur) {
+  const c = getCtx();
+  const rev = makeReverb(c);
+  const interval = 60 / BPM;
+  const t0 = c.currentTime;
+  let t = t0;
+  while (t < t0 + dur - 0.1) {
+    const osc = c.createOscillator();
+    const g = c.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(120, t);
+    osc.frequency.exponentialRampToValueAtTime(48, t + 0.18);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(VOL * 0.32, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+    osc.connect(g);
+    g.connect(rev.dry); g.connect(rev.conv);
+    osc.start(t); osc.stop(t + 0.7);
+    activeNodes.push(osc);
+    t += interval;
+  }
+}
+
+let masterOut = null;
+let fadeTimeout = null;
+
+function getMasterOut() {
+  const c = getCtx();
+  if (!masterOut) {
+    masterOut = c.createGain();
+    masterOut.gain.setValueAtTime(1, c.currentTime);
+    masterOut.connect(c.destination);
+  }
+  return masterOut;
+}
+
+function cancelFade() {
+  if (fadeTimeout) { clearTimeout(fadeTimeout); fadeTimeout = null; }
+  if (masterOut && audioCtx) {
+    masterOut.gain.cancelScheduledValues(audioCtx.currentTime);
+    masterOut.gain.setValueAtTime(1, audioCtx.currentTime);
+  }
+}
+
+function stopAudio() {
+  activeNodes.forEach(n => { try { n.stop(); } catch(e){} });
+  activeNodes = [];
+}
+
+function fadeOutAudio(cb) {
+  if (!masterOut || !audioCtx) { stopAudio(); if (cb) cb(); return; }
+  const c = audioCtx;
+  const fadeDur = 0.5;
+  cancelFade();
+  masterOut.gain.linearRampToValueAtTime(0, c.currentTime + fadeDur);
+  fadeTimeout = setTimeout(() => {
+    fadeTimeout = null;
+    stopAudio();
+    masterOut.gain.setValueAtTime(1, c.currentTime);
+    if (cb) cb();
+  }, fadeDur * 1000);
+}
+
+const circle = document.getElementById('circleMain');
+const MIN_SCALE = 1.0, MAX_SCALE = 1.9;
+function easeInOut(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+function animateCircle(type, dur, startTime, prevType) {
+  cancelAnimationFrame(animFrame);
+  function frame() {
+    const progress = Math.min((performance.now() - startTime) / 1000 / dur, 1);
+    let scale;
+    if (type === 'in') {
+      scale = MIN_SCALE + (MAX_SCALE - MIN_SCALE) * easeInOut(progress);
+    } else if (type === 'out') {
+      scale = MAX_SCALE - (MAX_SCALE - MIN_SCALE) * easeInOut(progress);
+    } else {
+      const holdBase = prevType === 'in' ? MAX_SCALE : MIN_SCALE;
+      scale = holdBase + 0.012 * Math.sin(progress * Math.PI * 4);
+    }
+    circle.style.transform = `scale(${scale.toFixed(4)})`;
+    if (progress < 1) animFrame = requestAnimationFrame(frame);
+  }
+  animFrame = requestAnimationFrame(frame);
+}
+
+function setPhaseLabel(name, count) {
+  document.getElementById('phaseName').textContent = name;
+  document.getElementById('phaseCount').textContent = count || '';
+}
+function setCycleInfo(t) { document.getElementById('cycleInfo').textContent = t; }
+
+function highlightPatternPhase(idx) {
+  document.querySelectorAll('.pattern-phase').forEach((el, i) => el.classList.toggle('active', i === idx));
+}
+
+function renderPatternDisplay() {
+  const def = PRESET_DEFS[currentPreset];
+  currentPattern = def.buildPattern(def.params);
+  const wrap = document.getElementById('patternDisplay');
+  wrap.innerHTML = '';
+  currentPattern.forEach((p) => {
+    const el = document.createElement('div');
+    el.className = 'pattern-phase';
+    el.textContent = `${p.n} · ${p.t}s`;
+    wrap.appendChild(el);
+  });
+}
+
+function renderTunePanel() {
+  const def = PRESET_DEFS[currentPreset];
+  const panel = document.getElementById('tunePanel');
+  const pf = def.paceField;
+  const paceVal = def.params[pf.key];
+
+  let html = `<h3>${def.label}</h3>`;
+  if (def.note) html += `<p class="preset-note">${def.note}</p>`;
+
+  // Pace row always shown
+  html += `<div class="tune-grid" style="margin-bottom:${def.ratioFields ? '0.9rem' : '0'}">
+    <div class="tune-field">
+      <label>${pf.label}</label>
+      <div class="step-ctrl">
+        <button onclick="stepParam('${currentPreset}','${pf.key}',-${pf.step})">−</button>
+        <span id="tv-${pf.key}">${paceVal}</span>
+        <button onclick="stepParam('${currentPreset}','${pf.key}',${pf.step})">+</button>
+      </div>
+    </div>`;
+
+  // For non-custom presets, show ratios as read-only text
+  if (!def.ratioFields) {
+    const rLabels = {box:'1 : 1 : 1 : 1', '478':'4 : 7 : 8', coherence:'1 : 1'};
+    html += `<div class="tune-field">
+      <label>Ratios</label>
+      <div style="font-size:0.82rem;font-weight:400;color:var(--text-dim);padding:0.55rem 0.5rem;">${rLabels[currentPreset]}</div>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Custom: 2×2 ratio grid
+  if (def.ratioFields) {
+    const rows = [[def.ratioFields[0], def.ratioFields[1]], [def.ratioFields[2], def.ratioFields[3]]];
+    rows.forEach(row => {
+      html += `<div class="tune-grid" style="margin-bottom:0.7rem">`;
+      row.forEach(field => {
+        const val = def.params[field.key];
+        html += `<div class="tune-field">
+          <label>${field.label}</label>
+          <div class="step-ctrl">
+            <button onclick="stepParam('${currentPreset}','${field.key}',-1)">−</button>
+            <span id="tv-${field.key}">${val}</span>
+            <button onclick="stepParam('${currentPreset}','${field.key}',1)">+</button>
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
+    });
+  }
+
+  panel.innerHTML = html;
+}
+
+function stepParam(preset, key, delta) {
+  const def = PRESET_DEFS[preset];
+  const isPace = key === 'pace';
+  const isRatio = key.startsWith('r_');
+
+  if (isPace) {
+    const pf = def.paceField;
+    let val = Math.round((def.params[key] + delta) * 100) / 100;
+    val = Math.max(pf.min, Math.min(pf.max, val));
+    def.params[key] = val;
+  } else if (isRatio) {
+    let val = Math.round(def.params[key] + delta);
+    val = Math.max(0, Math.min(30, val));
+    def.params[key] = val;
+  }
+
+  const el = document.getElementById('tv-' + key);
+  if (el) el.textContent = def.params[key];
+  renderPatternDisplay();
+  saveParams();
+  if (running) { stopFlag = true; clearTimeout(phaseTimer); finishSession(); }
+}
+
+function onTimerToggle() {
+  const enabled = document.getElementById('timerEnabled').checked;
+  document.getElementById('timerFields').classList.toggle('enabled', enabled);
+  if (!enabled) {
+    stopCountdown();
+  } else if (running) {
+    const fullDuration = timerMinutes * 60 * 1000;
+    startCountdown(fullDuration);
+  }
+  saveParams();
+}
+
+function stepTimer(delta) {
+  timerMinutes = Math.max(1, Math.min(120, timerMinutes + delta));
+  document.getElementById('timerVal').textContent = timerMinutes;
+  saveParams();
+}
+
+function formatCountdown(ms) {
+  const totalSec = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function showRuntime(show) {
+  document.getElementById('timerRuntime').classList.toggle('visible', show);
+}
+
+function startCountdown(ms) {
+  remainingMs = ms;
+  clearInterval(countdownInterval);
+  sessionStartTime = Date.now();
+  showRuntime(true);
+  const el = document.getElementById('timerRemaining');
+  el.style.color = '';
+  el.textContent = formatCountdown(remainingMs);
+  countdownInterval = setInterval(() => {
+    const elapsed = Date.now() - sessionStartTime;
+    const left = remainingMs - elapsed;
+    if (left <= 0) {
+      clearInterval(countdownInterval);
+      el.textContent = 'completing…';
+      el.style.color = 'var(--accent)';
+    } else {
+      el.textContent = formatCountdown(left);
+    }
+  }, 500);
+}
+
+function pauseCountdown() {
+  clearInterval(countdownInterval);
+  const elapsed = Date.now() - sessionStartTime;
+  remainingMs = Math.max(0, remainingMs - elapsed);
+  const el = document.getElementById('timerRemaining');
+  el.style.color = '';
+  el.textContent = remainingMs <= 0 ? 'completing…' : formatCountdown(remainingMs);
+  if (remainingMs <= 0) el.style.color = 'var(--accent)';
+}
+
+function stopCountdown() {
+  clearInterval(countdownInterval);
+  remainingMs = null;
+  showRuntime(false);
+}
+
+function setCircleLabel(text) {
+  document.getElementById('circleLabel').textContent = text;
+}
+
+function setResetActive(active) {
+  document.getElementById('timerResetBtn').classList.toggle('active', active);
+}
+
+function sleep(ms) { return new Promise(r => { phaseTimer = setTimeout(r, ms); }); }
+
+async function runSession() {
+  cycleCount = 0;
+  timerActive = document.getElementById('timerEnabled').checked;
+  const fullDuration = timerMinutes * 60 * 1000;
+  if (timerActive) {
+    const startMs = remainingMs !== null ? remainingMs : fullDuration;
+    startCountdown(startMs);
+  }
+
+  while (!stopFlag) {
+    if (timerActive && document.getElementById('timerEnabled').checked) {
+      const elapsed = Date.now() - sessionStartTime;
+      if ((remainingMs - elapsed) <= 0) break;
+    }
+    cycleCount++;
+    setCycleInfo(`Cycle ${cycleCount}`);
+    for (let i = 0; i < currentPattern.length; i++) {
+      if (stopFlag) break;
+      const phase = currentPattern[i];
+      const dur = phase.t;
+      const prevPhaseType = lastPhaseType;
+      lastPhaseType = phase.type;
+      setPhaseLabel(phase.n, `${dur}s`);
+      highlightPatternPhase(i);
+      stopAudio();
+      if (phase.type === 'hold') scheduleHeartbeat(dur);
+      else playTone(phase.type, dur);
+      animateCircle(phase.type, dur, performance.now(), prevPhaseType);
+      await sleep(dur * 1000);
+    }
+  }
+  // Timer expired naturally — full stop
+  if (!stopFlag) {
+    stopFlag = true;
+    pauseSession(true);
+  }
+}
+
+function pauseSession(fullStop) {
+  running = false;
+  cancelAnimationFrame(animFrame);
+  clearTimeout(phaseTimer);
+  fadeOutAudio(() => {
+    circle.style.transform = 'scale(1)';
+  });
+  setPhaseLabel('—', '');
+  setCycleInfo('');
+  highlightPatternPhase(-1);
+  if (timerActive) {
+    pauseCountdown();
+    if (fullStop) {
+      stopCountdown();
+      paused = false;
+      setCircleLabel('begin');
+    } else {
+      paused = true;
+      setCircleLabel('resume');
+    }
+  } else {
+    paused = false;
+    setCircleLabel('begin');
+  }
+}
+
+function finishSession() {
+  running = false;
+  paused = false;
+  cancelAnimationFrame(animFrame);
+  fadeOutAudio(() => {
+    circle.style.transform = 'scale(1)';
+  });
+  stopCountdown();
+  setPhaseLabel('—', '');
+  setCycleInfo('');
+  highlightPatternPhase(-1);
+  setCircleLabel('begin');
+}
+
+function toggleSession() {
+  if (running) {
+    stopFlag = true;
+    pauseSession(false);
+  } else {
+    cancelFade();
+    running = true;
+    paused = false;
+    stopFlag = false;
+    setCircleLabel('pause');
+    runSession();
+  }
+}
+
+function resetSession() {
+  remainingMs = null;
+  if (timerActive) {
+    const fullDuration = timerMinutes * 60 * 1000;
+    startCountdown(fullDuration);
+  }
+}
+
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (running) { stopFlag = true; clearTimeout(phaseTimer); finishSession(); }
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPreset = btn.dataset.preset;
+    renderTunePanel();
+    renderPatternDisplay();
+    saveParams();
+  });
+});
+
+loadParams();
+renderTunePanel();
+renderPatternDisplay();
+
+// Exposes internal state for Playwright tests — does not affect app behaviour.
+window._lungfulState = {
+  get running()       { return running; },
+  get paused()        { return paused; },
+  get currentPreset() { return currentPreset; },
+  get cycleCount()    { return cycleCount; },
+  get timerActive()   { return timerActive; },
+  get remainingMs()   { return remainingMs; },
+  get masterGain()    { return masterOut ? masterOut.gain.value : null; },
+  get audioRunning()  { return activeNodes.length > 0; },
+  presetParams(p)     { return { ...PRESET_DEFS[p].params }; },
+};
+</script>
+</body>
+</html>
