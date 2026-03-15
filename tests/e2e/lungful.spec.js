@@ -1,18 +1,53 @@
 const { test, expect } = require('@playwright/test');
 
-// Helper: open the app and wait for it to be ready
+// Helper: open the app, clear state, and wait for samples to load
 async function openApp(page) {
   await page.goto('/');
   await page.waitForSelector('[data-testid="circle"]');
-  // Clear localStorage so tests start from a known state
   await page.evaluate(() => localStorage.clear());
   await page.reload();
   await page.waitForSelector('[data-testid="circle"]');
+  // Wait for audio samples to finish loading before any interaction
+  await page.waitForFunction(() => window._lungfulState?.samplesReady === true, { timeout: 10000 });
 }
 
 function state(page) {
   return page.evaluate(() => window._lungfulState);
 }
+
+// ─── Sample loading ────────────────────────────────────────────────────────
+
+test.describe('Sample loading', () => {
+
+  test('all three samples load successfully', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._lungfulState?.samplesReady === true, { timeout: 10000 });
+    const ready = await page.evaluate(() => window._lungfulState.samplesReady);
+    expect(ready).toBe(true);
+  });
+
+  test('circle shows "begin" after samples load', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._lungfulState?.samplesReady === true, { timeout: 10000 });
+    await expect(page.getByTestId('circle-label')).toHaveText('begin');
+  });
+
+  test('circle becomes interactive after samples load', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._lungfulState?.samplesReady === true, { timeout: 10000 });
+    const pointerEvents = await page.evaluate(() =>
+      document.getElementById('circleOuter').style.pointerEvents
+    );
+    expect(pointerEvents).toBe('');
+  });
+
+  test('error dialog is not visible when samples load successfully', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForFunction(() => window._lungfulState?.samplesReady === true, { timeout: 10000 });
+    await expect(page.getByTestId('error-dialog')).not.toBeVisible();
+  });
+
+});
 
 // ─── Session: circle as the primary control ────────────────────────────────
 
@@ -72,10 +107,9 @@ test.describe('Session phases', () => {
 
   test('cycle counter increments each cycle', async ({ page }) => {
     await openApp(page);
-    // Set box pace to minimum (0.5s) so cycles complete quickly
     await page.getByTestId('preset-box').click();
     const decBtn = page.locator('[id="tv-pace"]').locator('..').locator('button').first();
-    for (let i = 0; i < 14; i++) await decBtn.click(); // 4 → 0.5 (14 × 0.25 steps... use pace dec button)
+    for (let i = 0; i < 14; i++) await decBtn.click();
     await page.getByTestId('circle').click();
     await page.waitForTimeout(2500);
     const s = await state(page);
@@ -131,7 +165,6 @@ test.describe('Pace model', () => {
 
   test('box at pace 4 produces four phases of 4s each', async ({ page }) => {
     await openApp(page);
-    const s = await state(page);
     const params = await page.evaluate(() => window._lungfulState.presetParams('box'));
     expect(params.pace).toBe(4);
     const phases = page.locator('.pattern-phase');
@@ -153,7 +186,6 @@ test.describe('Pace model', () => {
   test('4-7-8 at pace 2 produces 8s, 14s, 16s phases', async ({ page }) => {
     await openApp(page);
     await page.getByTestId('preset-478').click();
-    // Increment pace twice (1 → 1.5 → 2)
     const incBtn = page.locator('[id="tv-pace"]').locator('..').locator('button').last();
     await incBtn.click();
     await incBtn.click();
@@ -227,9 +259,8 @@ test.describe('Timer', () => {
     await page.getByTestId('timer-reset').click();
     const s = await state(page);
     expect(s.running).toBe(true);
-    // Remaining time should be back near the full duration
     const remaining = await page.evaluate(() => window._lungfulState.remainingMs);
-    expect(remaining).toBeGreaterThan(4 * 60 * 1000); // more than 4 mins of a 5-min timer
+    expect(remaining).toBeGreaterThan(4 * 60 * 1000);
   });
 
   test('pausing a timed session shows "resume" on circle', async ({ page }) => {
@@ -258,7 +289,6 @@ test.describe('Timer', () => {
     await page.getByTestId('circle').click(); // resume
     await page.waitForTimeout(500);
     const remainingAfterResume = await page.evaluate(() => window._lungfulState.remainingMs);
-    // remainingMs on resume should be close to what it was at pause (within 1s tolerance)
     expect(remainingAfterResume).toBeLessThanOrEqual(remainingAfterPause + 100);
     expect(remainingAfterResume).toBeGreaterThan(remainingAfterPause - 1500);
   });
@@ -268,6 +298,12 @@ test.describe('Timer', () => {
 // ─── Audio state ───────────────────────────────────────────────────────────
 
 test.describe('Audio state', () => {
+
+  test('samples are loaded and ready on startup', async ({ page }) => {
+    await openApp(page);
+    const s = await state(page);
+    expect(s.samplesReady).toBe(true);
+  });
 
   test('master gain is at 1 when session is running', async ({ page }) => {
     await openApp(page);
@@ -305,11 +341,10 @@ test.describe('Settings persistence', () => {
 
   test('pace change is saved and restored on reload', async ({ page }) => {
     await openApp(page);
-    // Increment box pace once (4 → 4.5)
     const incBtn = page.locator('[id="tv-pace"]').locator('..').locator('button').last();
-    await incBtn.click();
+    await incBtn.click(); // 4 → 4.5
     await page.reload();
-    await page.waitForSelector('[data-testid="circle"]');
+    await page.waitForFunction(() => window._lungfulState?.samplesReady === true, { timeout: 10000 });
     const params = await page.evaluate(() => window._lungfulState.presetParams('box'));
     expect(params.pace).toBe(4.5);
   });
@@ -319,7 +354,7 @@ test.describe('Settings persistence', () => {
     await page.getByTestId('timer-checkbox').check();
     await page.getByTestId('timer-inc').click(); // 5 → 6
     await page.reload();
-    await page.waitForSelector('[data-testid="circle"]');
+    await page.waitForFunction(() => window._lungfulState?.samplesReady === true, { timeout: 10000 });
     const val = await page.getByTestId('timer-val').textContent();
     expect(val).toBe('6');
   });
@@ -328,7 +363,7 @@ test.describe('Settings persistence', () => {
     await openApp(page);
     await page.getByTestId('timer-checkbox').check();
     await page.reload();
-    await page.waitForSelector('[data-testid="circle"]');
+    await page.waitForFunction(() => window._lungfulState?.samplesReady === true, { timeout: 10000 });
     const checked = await page.getByTestId('timer-checkbox').isChecked();
     expect(checked).toBe(true);
   });

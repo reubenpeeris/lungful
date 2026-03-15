@@ -192,6 +192,38 @@
     color: rgba(90,122,66,0.75);
     pointer-events: none;
     user-select: none;
+    text-align: center;
+    padding: 0 1rem;
+    transition: color 0.3s;
+  }
+  .error-dialog {
+    display: none;
+    background: var(--bg);
+    border: 1px solid rgba(160,50,30,0.35);
+    border-radius: var(--border-radius, 4px);
+    padding: 1.4rem 1.6rem;
+    margin: 1rem 0 1.4rem;
+    text-align: center;
+  }
+  .error-dialog.visible { display: block; }
+  .error-dialog-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    font-weight: 400;
+    color: rgba(140,40,20,0.9);
+    margin-bottom: 0.6rem;
+  }
+  .error-dialog-body {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+  .error-dialog-body code {
+    font-family: monospace;
+    font-size: 0.72rem;
+    background: var(--bg2);
+    padding: 0.1em 0.4em;
+    border-radius: 2px;
   }
 
   .timer-row {
@@ -358,6 +390,16 @@
   <div class="tune-panel" id="tunePanel"></div>
   <div class="pattern-display" id="patternDisplay"></div>
 
+  <div class="error-dialog" id="errorDialog" data-testid="error-dialog">
+    <div class="error-dialog-title">Audio samples could not be loaded</div>
+    <div class="error-dialog-body">
+      Lungful requires audio sample files to function.<br>
+      Make sure the app is served over HTTP and the <code>samples/</code> folder
+      is present alongside <code>index.html</code>.<br><br>
+      See the README for setup instructions.
+    </div>
+  </div>
+
   <div class="circle-wrap">
     <div class="circle-outer" id="circleOuter" data-testid="circle" onclick="toggleSession()">
       <div class="circle-ring"></div>
@@ -485,8 +527,23 @@ let sessionStartTime = null;
 let remainingMs = null;
 let countdownInterval = null;
 
-const VOL = 1.0, REV = 0.6, BPM = 35;
+const VOL = 1.0, REV = 0.6, BPM = 30, PIZ_VOL = 0.4;
 const LS_KEY = 'breathwork_params';
+
+// ─── Sample config ─────────────────────────────────────────────────────────
+const SAMPLE_PATH = 'samples/';
+const SAMPLE_FILES = {
+  bow:    { file: 'cello-c2.flac',        midi: 36 },
+  pizLow: { file: 'cello-piz-rr1-c2.flac', midi: 36 },
+  pizHigh:{ file: 'cello-piz-rr1-g2.flac', midi: 43 },
+};
+const BOW_MIDI_LOW  = 36;  // C2 — glide start (inhale) / end (exhale)
+const BOW_MIDI_HIGH = 43;  // G2 — glide end (inhale) / start (exhale)
+const BOW_LOOP_START = 1.2480;
+const BOW_LOOP_END   = 2.0730;
+
+let sampleBuffers = {};    // decoded AudioBuffers keyed by name
+let samplesReady = false;
 
 // ─── localStorage persistence ──────────────────────────────────────────────
 function saveParams() {
@@ -537,60 +594,80 @@ function makeReverb(c) {
   return { dry, conv, out };
 }
 
-function addSine(c, freq, endFreq, detuneCents, gainPeak, t, dur, dest) {
-  const osc = c.createOscillator();
-  const g = c.createGain();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(freq, t);
-  osc.frequency.exponentialRampToValueAtTime(endFreq, t + Math.max(dur - 0.3, 0.1));
-  osc.detune.setValueAtTime(detuneCents, t);
-  g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(gainPeak, t + Math.min(0.6, dur * 0.2));
-  g.gain.linearRampToValueAtTime(0, t + dur - 0.05);
-  osc.connect(g); g.connect(dest);
-  osc.start(t); osc.stop(t + dur + 0.2);
-  activeNodes.push(osc);
+// ─── Sample loading ────────────────────────────────────────────────────────
+async function loadSamples() {
+  setCircleLabel('loading…');
+  const c = getCtx();
+  const entries = Object.entries(SAMPLE_FILES);
+  const failed = [];
+  for (const [name, info] of entries) {
+    try {
+      const resp = await fetch(SAMPLE_PATH + info.file);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const arrayBuf = await resp.arrayBuffer();
+      sampleBuffers[name] = await c.decodeAudioData(arrayBuf);
+    } catch(e) {
+      failed.push(info.file);
+    }
+  }
+  if (failed.length === 0) {
+    samplesReady = true;
+  } else {
+    document.getElementById('errorDialog').classList.add('visible');
+    const label = document.getElementById('circleLabel');
+    label.textContent = '—';
+    console.error('Failed to load samples:', failed);
+  }
 }
+
+function midiToHz(midi) { return 440 * Math.pow(2, (midi - 69) / 12); }
 
 function playTone(type, dur) {
   const c = getCtx();
   const t = c.currentTime;
   const rev = makeReverb(c);
-  const master = c.createGain();
-  master.gain.setValueAtTime(VOL * 0.4, t);
-  const filter = c.createBiquadFilter();
-  filter.type = 'lowpass'; filter.Q.setValueAtTime(0.8, t);
-  master.connect(filter);
-  filter.connect(rev.dry); filter.connect(rev.conv);
-  const base = type === 'in' ? 110 : 220;
-  const end  = type === 'in' ? 220 : 110;
-  filter.frequency.setValueAtTime(type === 'in' ? 400 : 900, t);
-  filter.frequency.exponentialRampToValueAtTime(type === 'in' ? 900 : 400, t + Math.max(dur - 0.3, 0.1));
-  [0, 8, -8].forEach((detune, i) => {
-    addSine(c, base, end, detune, i === 0 ? 0.65 : 0.22, t, dur, master);
-  });
-  addSine(c, base*2, end*2, 3, 0.07, t, dur, master);
+  const buf = sampleBuffers.bow;
+  const startMidi = type === 'in' ? BOW_MIDI_LOW  : BOW_MIDI_HIGH;
+  const endMidi   = type === 'in' ? BOW_MIDI_HIGH : BOW_MIDI_LOW;
+  const startRate = midiToHz(startMidi) / midiToHz(SAMPLE_FILES.bow.midi);
+  const endRate   = midiToHz(endMidi)   / midiToHz(SAMPLE_FILES.bow.midi);
+
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  src.loopStart = BOW_LOOP_START;
+  src.loopEnd   = BOW_LOOP_END;
+  src.playbackRate.setValueAtTime(startRate, t);
+  src.playbackRate.exponentialRampToValueAtTime(endRate, t + Math.max(dur - 0.2, 0.1));
+
+  const g = c.createGain();
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(VOL * 0.75, t + 0.5);
+  g.gain.linearRampToValueAtTime(0, t + dur - 0.15);
+
+  src.connect(g); g.connect(rev.dry); g.connect(rev.conv);
+  src.start(t); src.stop(t + dur + 0.3);
+  activeNodes.push(src);
 }
 
-function scheduleHeartbeat(dur) {
+function scheduleHeartbeat(dur, prevPhaseType) {
   const c = getCtx();
   const rev = makeReverb(c);
   const interval = 60 / BPM;
   const t0 = c.currentTime;
+  const bufName = prevPhaseType === 'in' ? 'pizHigh' : 'pizLow';
+  const buf = sampleBuffers[bufName];
   let t = t0;
   while (t < t0 + dur - 0.1) {
-    const osc = c.createOscillator();
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = 1;
     const g = c.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(120, t);
-    osc.frequency.exponentialRampToValueAtTime(48, t + 0.18);
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(VOL * 0.32, t + 0.012);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
-    osc.connect(g);
-    g.connect(rev.dry); g.connect(rev.conv);
-    osc.start(t); osc.stop(t + 0.7);
-    activeNodes.push(osc);
+    g.gain.setValueAtTime(PIZ_VOL, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + Math.min(buf.duration, 2.0));
+    src.connect(g); g.connect(rev.dry); g.connect(rev.conv);
+    src.start(t); src.stop(t + Math.min(buf.duration, 2.0) + 0.1);
+    activeNodes.push(src);
     t += interval;
   }
 }
@@ -858,7 +935,7 @@ async function runSession() {
       setPhaseLabel(phase.n, `${dur}s`);
       highlightPatternPhase(i);
       stopAudio();
-      if (phase.type === 'hold') scheduleHeartbeat(dur);
+      if (phase.type === 'hold') scheduleHeartbeat(dur, prevPhaseType);
       else playTone(phase.type, dur);
       animateCircle(phase.type, dur, performance.now(), prevPhaseType);
       await sleep(dur * 1000);
@@ -949,6 +1026,16 @@ loadParams();
 renderTunePanel();
 renderPatternDisplay();
 
+// Load samples — circle stays disabled until ready
+document.getElementById('circleOuter').style.pointerEvents = 'none';
+loadSamples().then(() => {
+  if (samplesReady) {
+    document.getElementById('circleOuter').style.pointerEvents = '';
+    setCircleLabel('begin');
+  }
+  // If samples failed, circle stays disabled and label shows error
+});
+
 // Exposes internal state for Playwright tests — does not affect app behaviour.
 window._lungfulState = {
   get running()       { return running; },
@@ -959,6 +1046,7 @@ window._lungfulState = {
   get remainingMs()   { return remainingMs; },
   get masterGain()    { return masterOut ? masterOut.gain.value : null; },
   get audioRunning()  { return activeNodes.length > 0; },
+  get samplesReady()  { return samplesReady; },
   presetParams(p)     { return { ...PRESET_DEFS[p].params }; },
 };
 </script>

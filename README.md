@@ -1,16 +1,31 @@
 # Lungful
 
-Audio-guided breathwork app. No build step, no dependencies — just open `index.html` in a browser.
+Audio-guided breathwork app. No build step, no framework — one HTML file plus a small folder of audio samples.
 
 ## Using the app
 
-Open `index.html` directly in any modern browser, or serve it locally:
+The app loads audio sample files at runtime, so it must be served over HTTP rather than opened directly as a file. From the repo root:
 
 ```bash
 npx serve . -p 5000
 ```
 
 Then visit `http://localhost:5000`.
+
+> **Note**: double-clicking `index.html` will not work — browsers block local file fetches for security reasons.
+
+### Audio samples
+
+The app requires three cello samples in a `samples/` folder alongside `index.html`:
+
+```
+samples/
+  cello-c2.flac             # bowed sustain — inhale/exhale glide
+  cello-piz-rr1-c2.flac     # pizzicato C2 — hold after exhale
+  cello-piz-rr1-g2.flac     # pizzicato G2 — hold after inhale
+```
+
+These are from the [Sonatina Symphonic Orchestra](https://github.com/peastman/sso) library by Mattias Westlund, used under the [Creative Commons Sampling Plus 1.0](https://creativecommons.org/licenses/sampling+/1.0/) licence. See `LICENSES.md` for full attribution. If the samples fail to load the app shows an error and is non-interactive.
 
 ## Development setup
 
@@ -72,6 +87,8 @@ Suggested opening prompt:
 
 ```
 index.html              # the entire app
+samples/                # cello audio samples (see above)
+LICENSES.md             # attribution for audio samples
 package.json            # dependencies and npm scripts
 package-lock.json       # exact dependency versions (commit this)
 playwright.config.js    # test runner config
@@ -84,7 +101,7 @@ tests/
 
 ## Design notes
 
-- **Audio**: synthesised entirely via the Web Audio API — no audio files. Inhale/exhale uses three detuned sines with reverb; hold uses a tonal heartbeat at 35 BPM.
+- **Audio**: real cello samples from the Sonatina Symphonic Orchestra library. Inhale/exhale uses a bowed C2 sample looped and pitch-shifted across a perfect fifth (C2→G2). Hold uses pizzicato samples at C2 and G2 at 30 BPM — G2 after inhale, C2 after exhale. If samples fail to load the circle shows an error and the app is non-interactive.
 - **Pace model**: each preset has fixed integer ratios and an adjustable pace (seconds). Duration = ratio × pace.
 - **Persistence**: pace and timer settings are saved to `localStorage` (key: `breathwork_params`).
 - **Palette**: earthy light mode — parchment background (#f5f2eb), sage green accent (#5a7a42).
