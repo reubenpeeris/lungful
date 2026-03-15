@@ -83,10 +83,20 @@ Upload `index.html` to a new Claude conversation and describe what you want to c
 Suggested opening prompt:
 > This is my Lungful breathwork app built with vanilla HTML/CSS/JS and the Web Audio API. I'd like to change X.
 
+## Installing as an app (PWA)
+
+Lungful is a Progressive Web App. Once the site is hosted over HTTPS (e.g. GitHub Pages), Chrome on Android will offer an "Add to Home Screen" prompt automatically. The app will then launch full-screen without browser chrome, and work offline after the first visit — the service worker caches all assets including the audio samples.
+
+For local development the PWA install prompt won't appear (requires HTTPS), but the app functions normally over `http://localhost:5000`.
+
 ## Repo structure
 
 ```
 index.html              # the entire app
+manifest.json           # PWA manifest
+sw.js                   # service worker (caching + offline)
+icons/
+  icon.svg              # app icon (concentric circles mark)
 samples/                # cello audio samples (see above)
 LICENSES.md             # attribution for audio samples
 package.json            # dependencies and npm scripts

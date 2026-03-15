@@ -3,8 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f5f2eb">
+<link rel="manifest" href="manifest.json">
 <title>Lungful</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@200;300;400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Maven+Pro:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg:         #f5f2eb;
@@ -25,8 +27,8 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'Jost', sans-serif;
-    font-weight: 300;
+    font-family: 'Maven Pro', sans-serif;
+    font-weight: 400;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -84,7 +86,7 @@
     background: transparent;
     border: 0.5px solid var(--border);
     color: var(--text-dim);
-    font-family: 'Jost', sans-serif;
+    font-family: 'Maven Pro', sans-serif;
     font-weight: 300;
     font-size: 0.7rem;
     letter-spacing: 0.12em;
@@ -147,7 +149,7 @@
     justify-content: center;
     transition: background 0.15s;
     flex-shrink: 0;
-    font-family: 'Jost', sans-serif;
+    font-family: 'Maven Pro', sans-serif;
   }
   .step-ctrl button:hover { background: var(--bg3); color: var(--accent); }
   .step-ctrl span {
@@ -182,10 +184,33 @@
     cursor: pointer;
   }
   .circle-outer:active .circle-main { opacity: 0.8; }
+  .circle-ring {
+    position: absolute; inset: 0;
+    border-radius: 50%;
+    border: 0.5px solid rgba(90,122,66,0.28);
+  }
+  .circle-ring-2 {
+    position: absolute; inset: 20px;
+    border-radius: 50%;
+    border: 0.5px solid rgba(90,122,66,0.13);
+  }
+  .circle-main {
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 38%, rgba(122,158,90,0.42), rgba(90,122,66,0.16) 70%);
+    border: 1px solid rgba(90,122,66,0.45);
+    position: relative;
+  }
+  .circle-main::after {
+    content: '';
+    position: absolute; inset: -18px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(90,122,66,0.10), transparent 70%);
+  }
   .circle-label {
     position: absolute;
-    font-family: 'Jost', sans-serif;
-    font-weight: 300;
+    font-family: 'Maven Pro', sans-serif;
+    font-weight: 400;
     font-size: 0.7rem;
     letter-spacing: 0.22em;
     text-transform: uppercase;
@@ -278,7 +303,7 @@
     background: transparent;
     border: 0.5px solid var(--border);
     color: var(--text-dim);
-    font-family: 'Jost', sans-serif;
+    font-family: 'Maven Pro', sans-serif;
     font-weight: 300;
     font-size: 0.68rem;
     letter-spacing: 0.14em;
@@ -292,30 +317,6 @@
   .timer-countdown {
     display: none;
   }
-  .circle-ring {
-    position: absolute; inset: 0;
-    border-radius: 50%;
-    border: 0.5px solid rgba(90,122,66,0.28);
-  }
-  .circle-ring-2 {
-    position: absolute; inset: 20px;
-    border-radius: 50%;
-    border: 0.5px solid rgba(90,122,66,0.13);
-  }
-  .circle-main {
-    width: 120px; height: 120px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 38% 38%, rgba(122,158,90,0.42), rgba(90,122,66,0.16) 70%);
-    border: 1px solid rgba(90,122,66,0.45);
-    position: relative;
-  }
-  .circle-main::after {
-    content: '';
-    position: absolute; inset: -18px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(90,122,66,0.10), transparent 70%);
-  }
-
   .phase-label {
     text-align: center;
     margin-bottom: 0.4rem;
@@ -1049,6 +1050,10 @@ window._lungfulState = {
   get samplesReady()  { return samplesReady; },
   presetParams(p)     { return { ...PRESET_DEFS[p].params }; },
 };
+// Register service worker for PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/lungful/sw.js', { scope: '/lungful/' });
+}
 </script>
 </body>
 </html>
