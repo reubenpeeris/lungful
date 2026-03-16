@@ -115,4 +115,17 @@ tests/
 - **Pace model**: each preset has fixed integer ratios and an adjustable pace (seconds). Duration = ratio × pace.
 - **Persistence**: pace and timer settings are saved to `localStorage` (key: `breathwork_params`).
 - **Palette**: earthy light mode — parchment background (#f5f2eb), sage green accent (#5a7a42).
-- **Fonts**: Cormorant Garamond (headings), Jost (UI), loaded from Google Fonts.
+- **Fonts**: Cormorant Garamond (headings), Maven Pro (UI), loaded from Google Fonts.
+
+## Releasing a new version
+
+The app version is displayed in the footer of `index.html` and must be kept in sync with the cache name in `sw.js`. The test suite enforces this — a mismatch will cause the version sync test to fail.
+
+When making a release:
+
+1. Update the version in the `index.html` footer: `<span data-testid="app-version">vX.Y.Z</span>`
+2. Update the cache name in `sw.js`: `const CACHE = 'lungful-X.Y.Z';`
+3. Run `npm test` to confirm they match
+4. Commit and push both files together
+
+Version numbering follows semver — patch (Z) for small fixes and tweaks, minor (Y) for new features, major (X) for breaking changes or redesigns.

@@ -335,7 +335,30 @@ test.describe('Audio state', () => {
 
 });
 
-// ─── localStorage persistence ─────────────────────────────────────────────
+// ─── Version ───────────────────────────────────────────────────────────────
+
+test.describe('Version', () => {
+
+  test('app displays a version number', async ({ page }) => {
+    await openApp(page);
+    const version = await page.getByTestId('app-version').textContent();
+    expect(version).toMatch(/^v\d+\.\d+\.\d+$/);
+  });
+
+  test('sw.js cache name contains the displayed version number', async ({ page }) => {
+    await openApp(page);
+    const version = await page.getByTestId('app-version').textContent();
+    const semver = version.replace(/^v/, ''); // strip leading 'v'
+
+    const swText = await page.evaluate(async () => {
+      const resp = await fetch('/sw.js');
+      return resp.text();
+    });
+
+    expect(swText).toContain(`lungful-${semver}`);
+  });
+
+});
 
 test.describe('Settings persistence', () => {
 
