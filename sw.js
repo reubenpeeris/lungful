@@ -1,4 +1,4 @@
-const CACHE = 'lungful-1.0.1';
+const CACHE = 'lungful-1.0.2';
 const PRECACHE = [
   '/lungful/',
   '/lungful/index.html',

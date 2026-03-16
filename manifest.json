@@ -4,7 +4,7 @@
   "description": "Breathe with sound",
   "start_url": "/lungful/",
   "scope": "/lungful/",
-  "display": "standalone",
+  "display": "fullscreen",
   "orientation": "portrait",
   "background_color": "#f5f2eb",
   "theme_color": "#f5f2eb",
